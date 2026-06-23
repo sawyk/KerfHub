@@ -1,1 +1,385 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
+local Window = Rayfield:CreateWindow({
+   Name = "Kerf Hub",
+   Icon = 0,
+   LoadingTitle = "Loading Kerf Hub",
+   LoadingSubtitle = "by uhh.sawy",
+   ShowText = "Rayfield",
+   Theme = "Default",
+   ToggleUIKeybind = "K",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "Kerf Hub",
+      FileName = "Kerf Hub Config"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
+   KeySystem = false,
+   KeySettings = {
+      Title = "Kerf Keys",
+      Subtitle = "Complete the key system to get full access",
+      Note = "Julian Thomas Bacon",
+      FileName = "Key",
+      SaveKey = false,
+      GrabKeyFromSite = false,
+      Key = {"nigger"}
+   }
+})
+
+if game.PlaceId == 107646426076756 then
+
+local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
+local Section = FarmTab:CreateSection("Auto Farm")
+
+local SellCrates = game:GetService("ReplicatedStorage").Remotes.SellCrates
+local RunSell = false
+
+local SellToggle = FarmTab:CreateToggle({
+    Name = "Sell Crates",
+    CurrentValue = false,
+    Flag = "SellCrate",
+    Callback = function(Value)
+        RunSell = Value
+        if Value then
+            task.spawn(function()
+                while RunSell do
+                    SellCrates:FireServer()
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local RollBee = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BeeEventService.RF.RollBee
+local RunRollBee = false
+
+local BeeToggle = FarmTab:CreateToggle({
+    Name = "Roll Bee",
+    CurrentValue = false,
+    Flag = "RollBee",
+    Callback = function(Value)
+        RunRollBee = Value
+        if Value then
+            task.spawn(function()
+                while RunRollBee do
+                    RollBee:InvokeServer()
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local RollSeed = game:GetService("ReplicatedStorage").Remotes.RollSeeds
+local RunSeed = false
+
+local SeedToggle = FarmTab:CreateToggle({
+    Name = "Roll Seed",
+    CurrentValue = false,
+    Flag = "RollSeed",
+    Callback = function(Value)
+        RunSeed = Value
+        if Value then
+            task.spawn(function()
+                while RunSeed do
+                    RollSeed:FireServer()
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local BuyTab = Window:CreateTab("Buy", 4483362458) -- Title, Image
+
+local BuyActive = false
+local SelectedGears = {}
+local BuyGear = game:GetService("ReplicatedStorage").Remotes.Gear.Transaction
+local GearItems = {
+    "Normal Fertilizer",
+    "Acid Spray",
+    "Normal Pet Treat",
+    "Wet Spray",
+    "Strong Fertilizer",
+    "Strong Pet Treat",
+    "Frozen Spray",
+    "Autumn Spray", 
+    "Void Spray",
+    "Super Fertilizer",
+    "Super Pet Treat",  
+    "Radioactive Spray",
+    "Rainbow Spray",
+    "Prismatic Fertilizer",
+    "Cosmic Spray",
+    "Bubblegum Spray",
+    "Fire Spray",
+}
+
+local Dropdown = BuyTab:CreateDropdown({
+    Name = "Select Gear to Buy",
+    Options = GearItems,
+    CurrentOption = {"Normal Fertilizer"},
+    MultipleOptions = true,
+    Flag = "GearDropdown",
+    Callback = function(Options)
+        SelectedGears = Options
+        
+        -- If nothing is selected, stop buying
+        if #Options == 0 then
+            BuyActive = false
+        -- If nothing was being bought, start buying
+        elseif not BuyActive then
+            BuyActive = true
+            task.spawn(function()
+                while BuyActive do
+                    for _, gear in ipairs(SelectedGears) do
+                        if BuyActive then
+                            BuyGear:InvokeServer(gear)
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local alertRemote = game:GetService("ReplicatedStorage").Remotes.Alert
+
+local getConns = getconnections or syn and syn.getconnections
+if getConns then
+    for _, conn in ipairs(getConns(alertRemote.OnClientEvent)) do
+        conn:Disable()
+    end
+end
+
+alertRemote.OnClientEvent:Connect(function(...)
+    local args = {...}
+
+    -- block the standard alert payload
+    if args[1] == "Preset" and args[2] == "ERROR" then
+        local msg = args[3]
+        if msg == "Out of stock" or msg == "NoCash" then
+            return
+        end
+    end
+
+    -- block the raw result payload
+    if args[1] == false and args[2] == "NoCash" then
+        return
+    end
+
+    -- allow other alerts if needed
+    warn("Alert:", unpack(args))
+end)
+
+end
+
+if game.PlaceId == 84186978515156 then
+
+local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
+local Section = FarmTab:CreateSection("Auto Farm")
+
+local SellWheat = game:GetService("ReplicatedStorage").Remotes.Sell
+local RunSell = false
+local MinimumPrice = 5
+
+local SellToggle = FarmTab:CreateToggle({
+    Name = "Sell Wheat",
+    CurrentValue = false,
+    Flag = "SellWheat",
+    Callback = function(Value)
+        RunSell = Value
+        if Value then
+            task.spawn(function()
+                while RunSell do
+                    -- Get current price from the Sell UI
+                    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+                    local UI = PlayerGui:FindFirstChild("UI")
+                    local currentPrice = 0
+                    
+                    if UI then
+                        local sellPage = UI:FindFirstChild("Pages") and UI.Pages:FindFirstChild("Sell")
+                        if sellPage then
+                            local main = sellPage:FindFirstChild("Main")
+                            if main then
+                                local currentPriceLabel = main:FindFirstChild("CurrentPrice")
+                                if currentPriceLabel then
+                                    local priceText = currentPriceLabel:FindFirstChild("Price")
+                                    if priceText then
+                                        -- Extract number from "Current Price: $X" text
+                                        local text = priceText.Text
+                                        local price = tonumber(text:match("%$([0-9]+)")) or 0
+                                        currentPrice = price
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Only sell if current price meets or exceeds minimum
+                    if currentPrice >= MinimumPrice then
+                        SellWheat:FireServer()
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local PriceSlider = FarmTab:CreateSlider({
+    Name = "Minimum Price Per Grain",
+    Range = {1, 20},
+    Increment = 1,
+    Suffix = "$",
+    CurrentValue = 5,
+    Flag = "MinimumPriceSlider",
+    Callback = function(Value)
+        MinimumPrice = Value
+    end,
+})
+
+local CollectWheat = game:GetService("ReplicatedStorage").Remotes.Collect
+local RunCollect = false
+local CollectToggle = FarmTab:CreateToggle({
+    Name = "Collect All Mills",
+    CurrentValue = false,
+    Flag = "CollectAllMills",
+    Callback = function(Value)
+        RunCollect = Value
+        if Value then
+            task.spawn(function()
+                local playerName = game:GetService("Players").LocalPlayer.Name
+                local placedObjects = workspace.PlacedObjects[playerName]
+                while RunCollect do
+                    if placedObjects then
+                        for _, mill in ipairs(placedObjects:GetChildren()) do
+                            if RunCollect then
+                                CollectWheat:FireServer(mill)
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local Rebirth = game:GetService("ReplicatedStorage").Remotes.Rebirth
+local RunRebirth = false
+local RebirthToggle = FarmTab:CreateToggle({
+    Name = "Rebirth",
+    CurrentValue = false,
+    Flag = "Rebirth",
+    Callback = function(Value)
+        RunRebirth = Value
+        if Value then
+            task.spawn(function()
+                while RunRebirth do
+                    Rebirth:FireServer()
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local notificationRemote = game:GetService("ReplicatedStorage").Remotes.Notification
+
+local getConns = getconnections or syn and syn.getconnections
+if getConns then
+    for _, conn in ipairs(getConns(notificationRemote.OnClientEvent)) do
+        conn:Disable()
+    end
+end
+
+notificationRemote.OnClientEvent:Connect(function(...)
+    return
+end)
+
+end
+
+local MiscTab = Window:CreateTab("Misc", 4483362458) -- Title, Image
+local MiscSection = MiscTab:CreateSection("Player")
+
+local Player = game:GetService("Players").LocalPlayer
+local Mouse = Player:GetMouse()
+local InfJumpActive = false
+local InfJumpToggle = MiscTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Flag = "InfJumpToggle",
+    Callback = function(Value)
+        if Value then
+            local UserInputService = game:GetService("UserInputService")
+            InfJumpActive = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if gameProcessed then return end
+                if input.KeyCode == Enum.KeyCode.Space then
+                    Player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
+                    task.wait()
+                    Player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Seated")
+                end
+            end)
+        else
+            if InfJumpActive then
+                InfJumpActive:Disconnect()
+                InfJumpActive = false
+            end
+        end
+    end,
+})
+local WalkSpeedSlider = MiscTab:CreateSlider({
+   Name = "WalkSpeed Slider",
+   Range = {0, 500},
+   Increment = 1,
+   Suffix = "WalkSpeed",
+   CurrentValue = 16,
+   Flag = "WalkSpeedSlider", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = (Value)
+   -- The function that takes place when the slider changes
+   -- The variable (Value) is a number that correlates to the value the slider is currently at
+   end,
+})
+local JumpPowerSlider = MiscTab:CreateSlider({
+   Name = "JumpPower Slider",
+   Range = {0, 500},
+   Increment = 1,
+   Suffix = "JumpPower",
+   CurrentValue = 50,
+   Flag = "JumpPowerSlider", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = (Value)
+   -- The function that takes place when the slider changes
+   -- The variable (Value) is a number that correlates to the value the slider is currently at
+   end,
+})
+
+local RunAntiAFK = false
+local AntiAFKToggle = MiscTab:CreateToggle({
+    Name = "Anti AFK",
+    CurrentValue = false,
+    Flag = "AntiAFK",
+    Callback = function(Value)
+        RunAntiAFK = Value
+        if Value then
+            task.spawn(function()
+                local VirtualUser = game:GetService("VirtualUser")
+                while RunAntiAFK do
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new())
+                    task.wait(60)
+                end
+            end)
+        end
+    end,
+})
