@@ -35,11 +35,11 @@ local Window = Rayfield:CreateWindow({
 if game.PlaceId == 107646426076756 then
 
 local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
+
 local Section = FarmTab:CreateSection("Auto Farm")
 
 local SellCrates = game:GetService("ReplicatedStorage").Remotes.SellCrates
 local RunSell = false
-
 local SellToggle = FarmTab:CreateToggle({
     Name = "Sell Crates",
     CurrentValue = false,
@@ -59,7 +59,6 @@ local SellToggle = FarmTab:CreateToggle({
 
 local RollBee = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BeeEventService.RF.RollBee
 local RunRollBee = false
-
 local BeeToggle = FarmTab:CreateToggle({
     Name = "Roll Bee",
     CurrentValue = false,
@@ -79,7 +78,6 @@ local BeeToggle = FarmTab:CreateToggle({
 
 local RollSeed = game:GetService("ReplicatedStorage").Remotes.RollSeeds
 local RunSeed = false
-
 local SeedToggle = FarmTab:CreateToggle({
     Name = "Roll Seed",
     CurrentValue = false,
@@ -121,7 +119,6 @@ local GearItems = {
     "Bubblegum Spray",
     "Fire Spray",
 }
-
 local Dropdown = BuyTab:CreateDropdown({
     Name = "Select Gear to Buy",
     Options = GearItems,
@@ -150,7 +147,6 @@ local Dropdown = BuyTab:CreateDropdown({
         end
     end,
 })
-
 local alertRemote = game:GetService("ReplicatedStorage").Remotes.Alert
 
 local getConns = getconnections or syn and syn.getconnections
@@ -185,12 +181,12 @@ end
 if game.PlaceId == 84186978515156 then
 
 local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
+
 local Section = FarmTab:CreateSection("Auto Farm")
 
 local SellWheat = game:GetService("ReplicatedStorage").Remotes.Sell
 local RunSell = false
 local MinimumPrice = 5
-
 local SellToggle = FarmTab:CreateToggle({
     Name = "Sell Wheat",
     CurrentValue = false,
@@ -286,6 +282,61 @@ local RebirthToggle = FarmTab:CreateToggle({
             task.spawn(function()
                 while RunRebirth do
                     Rebirth:FireServer()
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+local BuyTab = Window:CreateTab("Buy", 4483362458) -- Title, Image
+
+local HarvesterSection = BuyTab:CreateSection("Buy Harvesters")
+
+local BuyHarvestersActive = false
+local SelectedHarvesters = {}
+local ShopsRemote = game:GetService("ReplicatedStorage").Remotes.Shops
+local HarvesterItems = {
+    "Small Tractor",
+    "Triple Blade Tractor",
+    "Double Blade Tractor",
+    "Big Tractor",
+    "Small Harvester",
+    "Basic Harvester",
+    "Double Harvester",
+    "Robot Harvester",
+    "Circle Harvester",
+    "Triple Harvester",
+    "Large Circle Harvester",
+    "Bucket Wheel Excavator",
+    "UFO",
+    "Mega Drone",
+    "Mega Laser",
+    "Blackhole",
+    "Blood Moon",
+}
+local HarvesterDropdown = BuyTab:CreateDropdown({
+    Name = "Select Harvesters to Buy",
+    Options = HarvesterItems,
+    CurrentOption = {""},
+    MultipleOptions = true,
+    Flag = "HarvesterDropdown",
+    Callback = function(Options)
+        SelectedHarvesters = Options
+        
+        -- If nothing is selected, stop buying
+        if #Options == 0 then
+            BuyHarvestersActive = false
+        -- If nothing was being bought, start buying
+        elseif not BuyHarvestersActive then
+            BuyHarvestersActive = true
+            task.spawn(function()
+                while BuyHarvestersActive do
+                    for _, harvester in ipairs(SelectedHarvesters) do
+                        if BuyHarvestersActive then
+                            ShopsRemote:FireServer("Buy", "Harvesters", harvester)
+                        end
+                    end
                     task.wait(0.1)
                 end
             end)
