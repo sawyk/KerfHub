@@ -359,6 +359,32 @@ end)
 
 end
 
+if game.PlaceId == 121863161094252 then
+
+local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
+
+local Section = FarmTab:CreateSection("Auto Farm")
+
+local AxeToggle = FarmTab:CreateToggle({
+    Name = "Auto Axe",
+    CurrentValue = false,
+    Flag = "AutoAxe",
+    Callback = function(Value)
+        if Value then
+            task.spawn(function()
+                while Value do
+                    local AxeRemote = game:GetService("ReplicatedStorage").Packages[".pesde"]["leifstout_networker@0.3.1"].networker._remotes.Bag.RemoteFunction
+                    AxeRemote:InvokeServer(
+                        "equipBestAxes"
+                    )
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end,
+})
+
+   
 local MiscTab = Window:CreateTab("Misc", 4483362458) -- Title, Image
 local MiscSection = MiscTab:CreateSection("Player")
 
@@ -388,6 +414,7 @@ local InfJumpToggle = MiscTab:CreateToggle({
         end
     end,
 })
+
 local WalkSpeedSlider = MiscTab:CreateSlider({
    Name = "WalkSpeed Slider",
    Range = {0, 500},
@@ -434,3 +461,5 @@ local AntiAFKToggle = MiscTab:CreateToggle({
         end
     end,
 })
+
+end
