@@ -28,7 +28,7 @@ local Window = Rayfield:CreateWindow({
       FileName = "Key",
       SaveKey = false,
       GrabKeyFromSite = false,
-      Key = {"nigger"}
+      Key = {""}
    }
 })
 
@@ -127,7 +127,7 @@ local Dropdown = BuyTab:CreateDropdown({
     Flag = "GearDropdown",
     Callback = function(Options)
         SelectedGears = Options
-        
+
         -- If nothing is selected, stop buying
         if #Options == 0 then
             BuyActive = false
@@ -195,12 +195,12 @@ local SellToggle = FarmTab:CreateToggle({
         RunSell = Value
         if Value then
             task.spawn(function()
+                local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
                 while RunSell do
                     -- Get current price from the Sell UI
-                    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-                    local UI = PlayerGui:FindFirstChild("UI")
                     local currentPrice = 0
-                    
+                    local UI = PlayerGui:FindFirstChild("UI")
+
                     if UI then
                         local sellPage = UI:FindFirstChild("Pages") and UI.Pages:FindFirstChild("Sell")
                         if sellPage then
@@ -219,7 +219,7 @@ local SellToggle = FarmTab:CreateToggle({
                             end
                         end
                     end
-                    
+
                     -- Only sell if current price meets or exceeds minimum
                     if currentPrice >= MinimumPrice then
                         SellWheat:FireServer()
@@ -254,8 +254,8 @@ local CollectToggle = FarmTab:CreateToggle({
         if Value then
             task.spawn(function()
                 local playerName = game:GetService("Players").LocalPlayer.Name
-                local placedObjects = workspace.PlacedObjects[playerName]
                 while RunCollect do
+                    local placedObjects = workspace.PlacedObjects:FindFirstChild(playerName)
                     if placedObjects then
                         for _, mill in ipairs(placedObjects:GetChildren()) do
                             if RunCollect then
@@ -323,7 +323,7 @@ local HarvesterDropdown = BuyTab:CreateDropdown({
     Flag = "HarvesterDropdown",
     Callback = function(Options)
         SelectedHarvesters = Options
-        
+
         -- If nothing is selected, stop buying
         if #Options == 0 then
             BuyHarvestersActive = false
@@ -365,18 +365,19 @@ local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
 
 local Section = FarmTab:CreateSection("Auto Farm")
 
+local AxeRunning = false
 local AxeToggle = FarmTab:CreateToggle({
     Name = "Auto Axe",
     CurrentValue = false,
     Flag = "AutoAxe",
     Callback = function(Value)
+        AxeRunning = Value
         if Value then
             task.spawn(function()
-                while Value do
-                    local AxeRemote = game:GetService("ReplicatedStorage").Packages[".pesde"]["leifstout_networker@0.3.1"].networker._remotes.Bag.RemoteFunction
-                    AxeRemote:InvokeServer(
-                        "equipBestAxes"
-                    )
+                local AxeRemote = game:GetService("ReplicatedStorage")
+                    .Packages[".pesde"]["leifstout_networker@0.3.1"].networker._remotes.Bag.RemoteFunction
+                while AxeRunning do
+                    AxeRemote:InvokeServer("equipBestAxes")
                     task.wait(0.1)
                 end
             end)
@@ -384,7 +385,116 @@ local AxeToggle = FarmTab:CreateToggle({
     end,
 })
 
-   
+end
+
+if game.PlaceId == 107641262558740 then
+    local AutoTab = Window:CreateTab("Auto", 4483362458) -- Title, Image
+
+    local AutoSection = AutoTab:CreateSection("Auto Task")
+
+    local PumpRunning = false
+    local PumpToggle = AutoTab:CreateToggle({
+        Name = "Auto Pump",
+        CurrentValue = false,
+        Flag = "AutoPump",
+        Callback = function(Value)
+            PumpRunning = Value
+            if Value then
+                task.spawn(function()
+                    local PumpRemote = workspace.Values.RepumpAirEvent
+                    while PumpRunning do
+                        PumpRemote:FireServer()
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    local LightRunning = false
+    local LightToggle = AutoTab:CreateToggle({
+        Name = "Auto Light",
+        CurrentValue = false,
+        Flag = "AutoLight",
+        Callback = function(Value)
+            LightRunning = Value
+
+            if Value then
+                task.spawn(function()
+                    local Player = game:GetService("Players").LocalPlayer
+                    local PlayerGui = Player.PlayerGui
+
+                    while LightRunning do
+                        local FixLightMinigame = PlayerGui:FindFirstChild("FixLightMinigame")
+
+                        local Event1 = FixLightMinigame
+                            and FixLightMinigame:FindFirstChild("Minigame2")
+                            and FixLightMinigame.Minigame2:FindFirstChild("FixLight")
+
+                        local Event2 = FixLightMinigame
+                            and FixLightMinigame:FindFirstChild("Frame")
+                            and FixLightMinigame.Frame:FindFirstChild("CablesFrame")
+                            and FixLightMinigame.Frame.CablesFrame:FindFirstChild("FixLight")
+
+                        for i = 1, 3 do
+                            local LightName = "Light" .. i
+
+                            if Event1 then
+                                pcall(function()
+                                    Event1:FireServer(LightName)
+                                end)
+                            end
+
+                            if Event2 then
+                                pcall(function()
+                                    Event2:FireServer(LightName)
+                                end)
+                            end
+                        end
+
+                        task.wait(5)
+                    end
+                end)
+            end
+        end,
+    })
+
+    local ACRunning = false
+local ACControlToggle = AutoTab:CreateToggle({
+    Name = "Auto AC Control",
+    CurrentValue = false,
+    Flag = "ACControl",
+    Callback = function(Value)
+        ACRunning = Value
+        if Value then
+            task.spawn(function()
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local TempEvent = ReplicatedStorage:WaitForChild("ACTempChange")
+                local Temperature = workspace:WaitForChild("Values"):WaitForChild("Temperature")
+                local Target = 22
+
+                while ACRunning do
+                    local current = Temperature.Value
+
+                    if current < Target then
+                        pcall(function()
+                            TempEvent:FireServer(true) -- increase
+                        end)
+                    elseif current > Target then
+                        pcall(function()
+                            TempEvent:FireServer(false) -- decrease
+                        end)
+                    end
+
+                    task.wait(0.35) -- matches the AC UI's own poll rate, avoids spamming faster than the server updates
+                end
+            end)
+        end
+    end,
+})
+
+end
+
 local MiscTab = Window:CreateTab("Misc", 4483362458) -- Title, Image
 local MiscSection = MiscTab:CreateSection("Player")
 
@@ -396,21 +506,26 @@ local InfJumpToggle = MiscTab:CreateToggle({
     CurrentValue = false,
     Flag = "InfJumpToggle",
     Callback = function(Value)
+        -- always clear any existing connection first to avoid leaking duplicates
+        if InfJumpActive then
+            InfJumpActive:Disconnect()
+            InfJumpActive = false
+        end
+
         if Value then
             local UserInputService = game:GetService("UserInputService")
             InfJumpActive = UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 if gameProcessed then return end
                 if input.KeyCode == Enum.KeyCode.Space then
-                    Player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
-                    task.wait()
-                    Player.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Seated")
+                    local Character = Player.Character
+                    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+                    if Humanoid then
+                        Humanoid:ChangeState("Jumping")
+                        task.wait()
+                        Humanoid:ChangeState("Seated")
+                    end
                 end
             end)
-        else
-            if InfJumpActive then
-                InfJumpActive:Disconnect()
-                InfJumpActive = false
-            end
         end
     end,
 })
@@ -421,11 +536,13 @@ local WalkSpeedSlider = MiscTab:CreateSlider({
    Increment = 1,
    Suffix = "WalkSpeed",
    CurrentValue = 16,
-   Flag = "WalkSpeedSlider", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "WalkSpeedSlider",
    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = (Value)
-   -- The function that takes place when the slider changes
-   -- The variable (Value) is a number that correlates to the value the slider is currently at
+        local Character = Player.Character
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
+        end
    end,
 })
 local JumpPowerSlider = MiscTab:CreateSlider({
@@ -434,11 +551,13 @@ local JumpPowerSlider = MiscTab:CreateSlider({
    Increment = 1,
    Suffix = "JumpPower",
    CurrentValue = 50,
-   Flag = "JumpPowerSlider", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "JumpPowerSlider",
    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = (Value)
-   -- The function that takes place when the slider changes
-   -- The variable (Value) is a number that correlates to the value the slider is currently at
+        local Character = Player.Character
+        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
    end,
 })
 
@@ -461,5 +580,3 @@ local AntiAFKToggle = MiscTab:CreateToggle({
         end
     end,
 })
-
-end
