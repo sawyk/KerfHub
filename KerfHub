@@ -32,74 +32,134 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
+-- ✅ FIX #9, #10: CACHED SERVICES (declare once at top)
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+
+local Player = Players.LocalPlayer
+
+-- ✅ SAFE REMOTE LOADER (prevents errors if remote doesn't exist)
+local function GetRemote(path)
+    local obj = RS
+    for part in path:gmatch("[^.]+") do
+        if obj then
+            obj = obj:FindFirstChild(part)
+        else
+            return nil
+        end
+    end
+    return obj
+end
+
+-- ✅ FIX #2: CHARACTER HELPERS (respawn-safe)
+local function GetCharacter()
+    return Player.Character or Player.CharacterAdded:Wait()
+end
+
+local function GetHRP()
+    local char = GetCharacter()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+local function GetHumanoid()
+    local char = GetCharacter()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+-- ✅ FIX #12: SAFE REMOTE WRAPPERS (handle nil remotes)
+local function SafeFire(remote, ...)
+    if not remote then return end
+    local args = {...}
+    pcall(function()
+        remote:FireServer(unpack(args))
+    end)
+end
+
+local function SafeInvoke(remote, ...)
+    if not remote then return end
+    local args = {...}
+    local success, result = pcall(function()
+        return remote:InvokeServer(unpack(args))
+    end)
+    return success, result
+end
+
+-- ✅ FIX #7: LOOP MANAGEMENT (prevents duplicate threads)
+local ActiveLoops = {}
+
+local function StartLoop(name, fn, interval)
+    if ActiveLoops[name] then return end
+    
+    ActiveLoops[name] = true
+    
+    task.spawn(function()
+        while ActiveLoops[name] do
+            fn()
+            task.wait(interval or 0.1)
+        end
+    end)
+end
+
+local function StopLoop(name)
+    ActiveLoops[name] = nil
+end
+
+-- ✅ FIX #16: UNIVERSAL TOGGLE TEMPLATE (eliminates duplicate code)
+local function CreateLoopToggle(tab, name, flag, interval, callback)
+    local running = false
+
+    tab:CreateToggle({
+        Name = name,
+        CurrentValue = false,
+        Flag = flag,
+        Callback = function(v)
+            running = v
+
+            if v then
+                task.spawn(function()
+                    while running do
+                        callback()
+                        task.wait(interval or 0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    return function() return running end
+end
+
+-- ========================================
+-- GAME 1: 107646426076756 (Bee Game)
+-- ========================================
 if game.PlaceId == 107646426076756 then
 
-local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
-
+local FarmTab = Window:CreateTab("Farm", 4483362458)
 local Section = FarmTab:CreateSection("Auto Farm")
 
-local SellCrates = game:GetService("ReplicatedStorage").Remotes.SellCrates
-local RunSell = false
-local SellToggle = FarmTab:CreateToggle({
-    Name = "Sell Crates",
-    CurrentValue = false,
-    Flag = "SellCrate",
-    Callback = function(Value)
-        RunSell = Value
-        if Value then
-            task.spawn(function()
-                while RunSell do
-                    SellCrates:FireServer()
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end,
-})
+-- ✅ FIX #6: OPTIMIZED INTERVALS + FIX #16: UNIFIED TOGGLES
+CreateLoopToggle(FarmTab, "Sell Crates", "SellCrate", 0.15, function()
+    local remote = GetRemote("Remotes.SellCrates")
+    SafeFire(remote)
+end)
 
-local RollBee = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_knit@1.7.0"].knit.Services.BeeEventService.RF.RollBee
-local RunRollBee = false
-local BeeToggle = FarmTab:CreateToggle({
-    Name = "Roll Bee",
-    CurrentValue = false,
-    Flag = "RollBee",
-    Callback = function(Value)
-        RunRollBee = Value
-        if Value then
-            task.spawn(function()
-                while RunRollBee do
-                    RollBee:InvokeServer()
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end,
-})
+CreateLoopToggle(FarmTab, "Roll Bee", "RollBee", 0.15, function()
+    local remote = GetRemote("Packages._Index.sleitnick_knit@1.7.0.knit.Services.BeeEventService.RF.RollBee")
+    SafeInvoke(remote)
+end)
 
-local RollSeed = game:GetService("ReplicatedStorage").Remotes.RollSeeds
-local RunSeed = false
-local SeedToggle = FarmTab:CreateToggle({
-    Name = "Roll Seed",
-    CurrentValue = false,
-    Flag = "RollSeed",
-    Callback = function(Value)
-        RunSeed = Value
-        if Value then
-            task.spawn(function()
-                while RunSeed do
-                    RollSeed:FireServer()
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end,
-})
+CreateLoopToggle(FarmTab, "Roll Seed", "RollSeed", 0.15, function()
+    local remote = GetRemote("Remotes.RollSeeds")
+    SafeFire(remote)
+end)
 
-local BuyTab = Window:CreateTab("Buy", 4483362458) -- Title, Image
+local BuyTab = Window:CreateTab("Buy", 4483362458)
 
 local BuyActive = false
 local SelectedGears = {}
-local BuyGear = game:GetService("ReplicatedStorage").Remotes.Gear.Transaction
 local GearItems = {
     "Normal Fertilizer",
     "Acid Spray",
@@ -119,6 +179,8 @@ local GearItems = {
     "Bubblegum Spray",
     "Fire Spray",
 }
+
+-- ✅ FIX #7: SAFE TABLE CLONING (prevents ipairs iteration bug)
 local Dropdown = BuyTab:CreateDropdown({
     Name = "Select Gear to Buy",
     Options = GearItems,
@@ -128,65 +190,69 @@ local Dropdown = BuyTab:CreateDropdown({
     Callback = function(Options)
         SelectedGears = Options
 
-        -- If nothing is selected, stop buying
         if #Options == 0 then
             BuyActive = false
-        -- If nothing was being bought, start buying
         elseif not BuyActive then
             BuyActive = true
             task.spawn(function()
                 while BuyActive do
-                    for _, gear in ipairs(SelectedGears) do
+                    local BuyGear = GetRemote("Remotes.Gear.Transaction")
+                    -- Clone table to avoid iteration issues
+                    local current = table.clone(SelectedGears)
+                    for _, gear in ipairs(current) do
                         if BuyActive then
-                            BuyGear:InvokeServer(gear)
+                            SafeInvoke(BuyGear, gear)
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.25)
                 end
             end)
         end
     end,
 })
-local alertRemote = game:GetService("ReplicatedStorage").Remotes.Alert
 
-local getConns = getconnections or syn and syn.getconnections
-if getConns then
-    for _, conn in ipairs(getConns(alertRemote.OnClientEvent)) do
+-- ✅ FIX #8: NOTIFICATION SUPPRESSION (wrapped with check)
+local alertRemote = GetRemote("Remotes.Alert")
+
+if alertRemote and getconnections then
+    for _, conn in ipairs(getconnections(alertRemote.OnClientEvent)) do
         conn:Disable()
     end
 end
 
-alertRemote.OnClientEvent:Connect(function(...)
-    local args = {...}
+if alertRemote then
+    alertRemote.OnClientEvent:Connect(function(...)
+        local args = {...}
 
-    -- block the standard alert payload
-    if args[1] == "Preset" and args[2] == "ERROR" then
-        local msg = args[3]
-        if msg == "Out of stock" or msg == "NoCash" then
+        if args[1] == "Preset" and args[2] == "ERROR" then
+            local msg = args[3]
+            if msg == "Out of stock" or msg == "NoCash" then
+                return
+            end
+        end
+
+        if args[1] == false and args[2] == "NoCash" then
             return
         end
-    end
 
-    -- block the raw result payload
-    if args[1] == false and args[2] == "NoCash" then
-        return
-    end
-
-    -- allow other alerts if needed
-    warn("Alert:", unpack(args))
-end)
+        warn("Alert:", unpack(args))
+    end)
+end
 
 end
 
+-- ========================================
+-- GAME 2: 84186978515156 (Wheat Farm)
+-- ========================================
 if game.PlaceId == 84186978515156 then
 
-local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
-
+local FarmTab = Window:CreateTab("Farm", 4483362458)
 local Section = FarmTab:CreateSection("Auto Farm")
 
-local SellWheat = game:GetService("ReplicatedStorage").Remotes.Sell
-local RunSell = false
+-- ✅ FIX #13: VARIABLE INITIALIZATION (slider saves now work)
 local MinimumPrice = 5
+local RunSell = false
+
 local SellToggle = FarmTab:CreateToggle({
     Name = "Sell Wheat",
     CurrentValue = false,
@@ -195,9 +261,8 @@ local SellToggle = FarmTab:CreateToggle({
         RunSell = Value
         if Value then
             task.spawn(function()
-                local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+                local PlayerGui = Player:WaitForChild("PlayerGui")
                 while RunSell do
-                    -- Get current price from the Sell UI
                     local currentPrice = 0
                     local UI = PlayerGui:FindFirstChild("UI")
 
@@ -210,7 +275,6 @@ local SellToggle = FarmTab:CreateToggle({
                                 if currentPriceLabel then
                                     local priceText = currentPriceLabel:FindFirstChild("Price")
                                     if priceText then
-                                        -- Extract number from "Current Price: $X" text
                                         local text = priceText.Text
                                         local price = tonumber(text:match("%$([0-9]+)")) or 0
                                         currentPrice = price
@@ -220,9 +284,9 @@ local SellToggle = FarmTab:CreateToggle({
                         end
                     end
 
-                    -- Only sell if current price meets or exceeds minimum
                     if currentPrice >= MinimumPrice then
-                        SellWheat:FireServer()
+                        local SellWheat = GetRemote("Remotes.Sell")
+                        SafeFire(SellWheat)
                     end
                     task.wait(0.1)
                 end
@@ -231,6 +295,7 @@ local SellToggle = FarmTab:CreateToggle({
     end,
 })
 
+-- ✅ FIX #13: SLIDER NOW UPDATES STORED VALUE
 local PriceSlider = FarmTab:CreateSlider({
     Name = "Minimum Price Per Grain",
     Range = {1, 20},
@@ -243,23 +308,25 @@ local PriceSlider = FarmTab:CreateSlider({
     end,
 })
 
-local CollectWheat = game:GetService("ReplicatedStorage").Remotes.Collect
-local RunCollect = false
+-- ✅ FIX #14: DESCRIPTIVE VARIABLE NAMES (RunCollectWheat instead of RunCollect)
+local RunCollectWheat = false
+
 local CollectToggle = FarmTab:CreateToggle({
     Name = "Collect All Mills",
     CurrentValue = false,
     Flag = "CollectAllMills",
     Callback = function(Value)
-        RunCollect = Value
+        RunCollectWheat = Value
         if Value then
             task.spawn(function()
-                local playerName = game:GetService("Players").LocalPlayer.Name
-                while RunCollect do
+                local playerName = Player.Name
+                while RunCollectWheat do
                     local placedObjects = workspace.PlacedObjects:FindFirstChild(playerName)
                     if placedObjects then
                         for _, mill in ipairs(placedObjects:GetChildren()) do
-                            if RunCollect then
-                                CollectWheat:FireServer(mill)
+                            if RunCollectWheat then
+                                local CollectWheat = GetRemote("Remotes.Collect")
+                                SafeFire(CollectWheat, mill)
                             end
                         end
                     end
@@ -270,8 +337,8 @@ local CollectToggle = FarmTab:CreateToggle({
     end,
 })
 
-local Rebirth = game:GetService("ReplicatedStorage").Remotes.Rebirth
 local RunRebirth = false
+
 local RebirthToggle = FarmTab:CreateToggle({
     Name = "Rebirth",
     CurrentValue = false,
@@ -281,7 +348,8 @@ local RebirthToggle = FarmTab:CreateToggle({
         if Value then
             task.spawn(function()
                 while RunRebirth do
-                    Rebirth:FireServer()
+                    local Rebirth = GetRemote("Remotes.Rebirth")
+                    SafeFire(Rebirth)
                     task.wait(0.1)
                 end
             end)
@@ -289,13 +357,11 @@ local RebirthToggle = FarmTab:CreateToggle({
     end,
 })
 
-local BuyTab = Window:CreateTab("Buy", 4483362458) -- Title, Image
-
+local BuyTab = Window:CreateTab("Buy", 4483362458)
 local HarvesterSection = BuyTab:CreateSection("Buy Harvesters")
 
 local BuyHarvestersActive = false
 local SelectedHarvesters = {}
-local ShopsRemote = game:GetService("ReplicatedStorage").Remotes.Shops
 local HarvesterItems = {
     "Small Tractor",
     "Triple Blade Tractor",
@@ -315,6 +381,8 @@ local HarvesterItems = {
     "Blackhole",
     "Blood Moon",
 }
+
+-- ✅ FIX #7: SAFE TABLE CLONING
 local HarvesterDropdown = BuyTab:CreateDropdown({
     Name = "Select Harvesters to Buy",
     Options = HarvesterItems,
@@ -324,48 +392,54 @@ local HarvesterDropdown = BuyTab:CreateDropdown({
     Callback = function(Options)
         SelectedHarvesters = Options
 
-        -- If nothing is selected, stop buying
         if #Options == 0 then
             BuyHarvestersActive = false
-        -- If nothing was being bought, start buying
         elseif not BuyHarvestersActive then
             BuyHarvestersActive = true
             task.spawn(function()
                 while BuyHarvestersActive do
-                    for _, harvester in ipairs(SelectedHarvesters) do
+                    local ShopsRemote = GetRemote("Remotes.Shops")
+                    local current = table.clone(SelectedHarvesters)
+                    for _, harvester in ipairs(current) do
                         if BuyHarvestersActive then
-                            ShopsRemote:FireServer("Buy", "Harvesters", harvester)
+                            SafeFire(ShopsRemote, "Buy", "Harvesters", harvester)
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.25)
                 end
             end)
         end
     end,
 })
 
-local notificationRemote = game:GetService("ReplicatedStorage").Remotes.Notification
+-- ✅ FIX #8: NOTIFICATION SUPPRESSION
+local notificationRemote = GetRemote("Remotes.Notification")
 
-local getConns = getconnections or syn and syn.getconnections
-if getConns then
-    for _, conn in ipairs(getConns(notificationRemote.OnClientEvent)) do
+if notificationRemote and getconnections then
+    for _, conn in ipairs(getconnections(notificationRemote.OnClientEvent)) do
         conn:Disable()
     end
 end
 
-notificationRemote.OnClientEvent:Connect(function(...)
-    return
-end)
+if notificationRemote then
+    notificationRemote.OnClientEvent:Connect(function(...)
+        return
+    end)
+end
 
 end
 
+-- ========================================
+-- GAME 3: 121863161094252 (Lumber Tycoon)
+-- ========================================
 if game.PlaceId == 121863161094252 then
 
-local FarmTab = Window:CreateTab("Farm", 4483362458) -- Title, Image
-
+local FarmTab = Window:CreateTab("Farm", 4483362458)
 local Section = FarmTab:CreateSection("Auto Farm")
 
+-- ✅ FIX #14: DESCRIPTIVE NAMES
 local AxeRunning = false
+
 local AxeToggle = FarmTab:CreateToggle({
     Name = "Auto Axe",
     CurrentValue = false,
@@ -374,10 +448,9 @@ local AxeToggle = FarmTab:CreateToggle({
         AxeRunning = Value
         if Value then
             task.spawn(function()
-                local AxeRemote = game:GetService("ReplicatedStorage")
-                    .Packages[".pesde"]["leifstout_networker@0.3.1"].networker._remotes.Bag.RemoteFunction
                 while AxeRunning do
-                    AxeRemote:InvokeServer("equipBestAxes")
+                    local AxeRemote = GetRemote("Packages..pesde.leifstout_networker@0.3.1.networker._remotes.Bag.RemoteFunction")
+                    SafeInvoke(AxeRemote, "equipBestAxes")
                     task.wait(0.1)
                 end
             end)
@@ -387,11 +460,14 @@ local AxeToggle = FarmTab:CreateToggle({
 
 end
 
+-- ========================================
+-- GAME 4: 107641262558740 (Space Station)
+-- ========================================
 if game.PlaceId == 107641262558740 then
-    local AutoTab = Window:CreateTab("Auto", 4483362458) -- Title, Image
-
+    local AutoTab = Window:CreateTab("Auto", 4483362458)
     local AutoSection = AutoTab:CreateSection("Auto Task")
 
+    -- ✅ FIX #14: DESCRIPTIVE NAMES
     local PumpRunning = false
     local PumpToggle = AutoTab:CreateToggle({
         Name = "Auto Pump",
@@ -403,7 +479,7 @@ if game.PlaceId == 107641262558740 then
                 task.spawn(function()
                     local PumpRemote = workspace.Values.RepumpAirEvent
                     while PumpRunning do
-                        PumpRemote:FireServer()
+                        SafeFire(PumpRemote)
                         task.wait(0.1)
                     end
                 end)
@@ -421,7 +497,6 @@ if game.PlaceId == 107641262558740 then
 
             if Value then
                 task.spawn(function()
-                    local Player = game:GetService("Players").LocalPlayer
                     local PlayerGui = Player.PlayerGui
 
                     while LightRunning do
@@ -440,15 +515,11 @@ if game.PlaceId == 107641262558740 then
                             local LightName = "Light" .. i
 
                             if Event1 then
-                                pcall(function()
-                                    Event1:FireServer(LightName)
-                                end)
+                                SafeFire(Event1, LightName)
                             end
 
                             if Event2 then
-                                pcall(function()
-                                    Event2:FireServer(LightName)
-                                end)
+                                SafeFire(Event2, LightName)
                             end
                         end
 
@@ -460,69 +531,245 @@ if game.PlaceId == 107641262558740 then
     })
 
     local ACRunning = false
-local ACControlToggle = AutoTab:CreateToggle({
-    Name = "Auto AC Control",
-    CurrentValue = false,
-    Flag = "ACControl",
-    Callback = function(Value)
-        ACRunning = Value
-        if Value then
-            task.spawn(function()
-                local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                local TempEvent = ReplicatedStorage:WaitForChild("ACTempChange")
-                local Temperature = workspace:WaitForChild("Values"):WaitForChild("Temperature")
-                local Target = 22
+    local ACControlToggle = AutoTab:CreateToggle({
+        Name = "Auto AC Control",
+        CurrentValue = false,
+        Flag = "ACControl",
+        Callback = function(Value)
+            ACRunning = Value
+            if Value then
+                task.spawn(function()
+                    local TempEvent = RS:WaitForChild("ACTempChange")
+                    local Temperature = workspace:WaitForChild("Values"):WaitForChild("Temperature")
+                    local Target = 22
 
-                while ACRunning do
-                    local current = Temperature.Value
+                    while ACRunning do
+                        local current = Temperature.Value
 
-                    if current < Target then
-                        pcall(function()
-                            TempEvent:FireServer(true) -- increase
-                        end)
-                    elseif current > Target then
-                        pcall(function()
-                            TempEvent:FireServer(false) -- decrease
-                        end)
+                        if current < Target then
+                            SafeFire(TempEvent, true)
+                        elseif current > Target then
+                            SafeFire(TempEvent, false)
+                        end
+
+                        task.wait(0.35)
                     end
-
-                    task.wait(0.35) -- matches the AC UI's own poll rate, avoids spamming faster than the server updates
-                end
-            end)
-        end
-    end,
-})
+                end)
+            end
+        end,
+    })
 
 end
 
-local MiscTab = Window:CreateTab("Misc", 4483362458) -- Title, Image
+-- ========================================
+-- GAME 5: 110947318876182 (Dropper RNG)
+-- ========================================
+if game.PlaceId == 110947318876182 then
+
+    local AutoTab = Window:CreateTab("Auto", 4483362458)
+    local AutoSection = AutoTab:CreateSection("Auto Farm")
+
+    local ReplaceBestRunning = false
+    local ReplaceBestToggle = AutoTab:CreateToggle({
+        Name = "Auto Replace Best",
+        CurrentValue = false,
+        Flag = "AutoReplaceBest",
+        Callback = function(Value)
+            ReplaceBestRunning = Value
+            if Value then
+                task.spawn(function()
+                    while ReplaceBestRunning do
+                        local ReplaceBestRemote = GetRemote("DropperRNGRemotes.RequestReplaceBestDroppers")
+                        SafeFire(ReplaceBestRemote)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    local AutoRebirthRunning = false
+    local AutoRebirthToggle = AutoTab:CreateToggle({
+        Name = "Auto Rebirth",
+        CurrentValue = false,
+        Flag = "AutoRebirth",
+        Callback = function(Value)
+            AutoRebirthRunning = Value
+            if Value then
+                task.spawn(function()
+                    while AutoRebirthRunning do
+                        local RebirthRemote = GetRemote("DropperRNGRemotes.RequestRebirth")
+                        SafeFire(RebirthRemote)
+                        task.wait(0.1)
+                    end
+                end)
+            end
+        end,
+    })
+
+    local NotifyPlayerRemote = GetRemote("DropperRNGRemotes.NotifyPlayer")
+
+    if NotifyPlayerRemote and getconnections then
+        for _, conn in ipairs(getconnections(NotifyPlayerRemote.OnClientEvent)) do
+            conn:Disable()
+        end
+    end
+
+    if NotifyPlayerRemote then
+        NotifyPlayerRemote.OnClientEvent:Connect(function(data)
+            if type(data) == "table" and data.message == "Your placed droppers are already your best setup." and data.kind == "Info" then
+                return
+            end
+
+            warn("DropperRNG Notify:", data)
+        end)
+    end
+
+end
+
+-- ========================================
+-- GAME 6: 131416851083147 (Cycling Game)
+-- ========================================
+if game.PlaceId == 131416851083147 then
+    local AutoTab = Window:CreateTab("Auto", 4483362458)
+    local AutoSection = AutoTab:CreateSection("Auto Farm")
+
+    -- ✅ FIX #1: DECLARE BEFORE USE
+    local AutoCycleRunning = false
+
+    local positions = {
+        Vector3.new(-22, 11, -101),
+        Vector3.new(-22, 17, 63),
+        Vector3.new(16, 17, 63),
+        Vector3.new(16, 11, -98),
+    }
+
+    local speed = 100
+
+    -- ✅ FIX #11: OPTIMIZED MOVEMENT
+    local function moveTo(hrp, targetPos)
+        local start = hrp.Position
+        local distance = (targetPos - start).Magnitude
+        local duration = distance / speed
+
+        local t = 0
+        while t < duration and AutoCycleRunning do
+            t += RunService.Heartbeat:Wait()
+
+            local alpha = math.clamp(t / duration, 0, 1)
+            hrp.CFrame = CFrame.new(start:Lerp(targetPos, alpha))
+        end
+
+        if AutoCycleRunning then
+            hrp.CFrame = CFrame.new(targetPos)
+        end
+    end
+
+    AutoTab:CreateToggle({
+        Name = "Auto Cycle",
+        CurrentValue = false,
+        Flag = "AutoCycle",
+        Callback = function(Value)
+            AutoCycleRunning = Value
+
+            if Value then
+                task.spawn(function()
+                    local CycleRemote = GetRemote("Remotes.Cycle")
+
+                    -- ✅ FIX #6: SAFER RATE (0.15 instead of 0.1)
+                    task.spawn(function()
+                        while AutoCycleRunning do
+                            SafeFire(CycleRemote)
+                            task.wait(0.15)
+                        end
+                    end)
+
+                    while AutoCycleRunning do
+                        local hrp = GetHRP()
+
+                        for _, pos in ipairs(positions) do
+                            if not AutoCycleRunning then
+                                break
+                            end
+
+                            moveTo(hrp, pos)
+                        end
+                    end
+                end)
+            end
+        end,
+    })
+
+    -- ✅ FIX #4: UNIVERSAL KEYPRESS (works everywhere)
+    local keyInterval = 0.2
+    local AutoDroneRunning = false
+
+    AutoTab:CreateToggle({
+        Name = "Auto Drone",
+        CurrentValue = false,
+        Flag = "AutoDrone",
+        Callback = function(Value)
+            AutoDroneRunning = Value
+
+            if Value then
+                task.spawn(function()
+                    while AutoDroneRunning do
+                        if keypress and keyrelease then
+                            keypress(0x33)
+                            task.wait(0.02)
+                            keyrelease(0x33)
+                        else
+                            VIM:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
+                            task.wait(0.02)
+                            VIM:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
+                        end
+
+                        task.wait(keyInterval)
+                    end
+                end)
+            end
+        end,
+    })
+
+end
+
+-- ========================================
+-- MISC TAB (Global across all games)
+-- ========================================
+local MiscTab = Window:CreateTab("Misc", 4483362458)
 local MiscSection = MiscTab:CreateSection("Player")
 
-local Player = game:GetService("Players").LocalPlayer
-local Mouse = Player:GetMouse()
-local InfJumpActive = false
+-- ✅ FIX #3: WALK/JUMP SYSTEM (respawn-proof)
+local WalkSpeed = 16
+local JumpPower = 50
+
+Player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.WalkSpeed = WalkSpeed
+    hum.JumpPower = JumpPower
+end)
+
+-- ✅ FIX #5: INFINITE JUMP (simplified + no memory leak)
+local InfJumpConn
+
 local InfJumpToggle = MiscTab:CreateToggle({
     Name = "Infinite Jump",
     CurrentValue = false,
     Flag = "InfJumpToggle",
     Callback = function(Value)
-        -- always clear any existing connection first to avoid leaking duplicates
-        if InfJumpActive then
-            InfJumpActive:Disconnect()
-            InfJumpActive = false
+        if InfJumpConn then
+            InfJumpConn:Disconnect()
+            InfJumpConn = nil
         end
 
         if Value then
-            local UserInputService = game:GetService("UserInputService")
-            InfJumpActive = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            InfJumpConn = UIS.InputBegan:Connect(function(input, gameProcessed)
                 if gameProcessed then return end
+                
                 if input.KeyCode == Enum.KeyCode.Space then
-                    local Character = Player.Character
-                    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-                    if Humanoid then
-                        Humanoid:ChangeState("Jumping")
-                        task.wait()
-                        Humanoid:ChangeState("Seated")
+                    local hum = GetHumanoid()
+                    if hum then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
                     end
                 end
             end)
@@ -530,6 +777,7 @@ local InfJumpToggle = MiscTab:CreateToggle({
     end,
 })
 
+-- ✅ FIX #13: SLIDER UPDATES STORED VALUE
 local WalkSpeedSlider = MiscTab:CreateSlider({
    Name = "WalkSpeed Slider",
    Range = {0, 500},
@@ -538,13 +786,14 @@ local WalkSpeedSlider = MiscTab:CreateSlider({
    CurrentValue = 16,
    Flag = "WalkSpeedSlider",
    Callback = function(Value)
-        local Character = Player.Character
-        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-        if Humanoid then
-            Humanoid.WalkSpeed = Value
+        WalkSpeed = Value
+        local hum = GetHumanoid()
+        if hum then
+            hum.WalkSpeed = Value
         end
    end,
 })
+
 local JumpPowerSlider = MiscTab:CreateSlider({
    Name = "JumpPower Slider",
    Range = {0, 500},
@@ -553,14 +802,15 @@ local JumpPowerSlider = MiscTab:CreateSlider({
    CurrentValue = 50,
    Flag = "JumpPowerSlider",
    Callback = function(Value)
-        local Character = Player.Character
-        local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-        if Humanoid then
-            Humanoid.JumpPower = Value
+        JumpPower = Value
+        local hum = GetHumanoid()
+        if hum then
+            hum.JumpPower = Value
         end
    end,
 })
 
+-- ✅ FIX #15: ANTI AFK (uses Player.Idled when available)
 local RunAntiAFK = false
 local AntiAFKToggle = MiscTab:CreateToggle({
     Name = "Anti AFK",
