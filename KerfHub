@@ -700,7 +700,7 @@ if game.PlaceId == 131416851083147 then
         end,
     })
 
-    -- ✅ FIX #4: UNIVERSAL KEYPRESS (works everywhere)
+    -- ✅ FIX #4: AUTO DRONE (works tabbed out with executor functions)
     local keyInterval = 0.2
     local AutoDroneRunning = false
 
@@ -714,15 +714,21 @@ if game.PlaceId == 131416851083147 then
             if Value then
                 task.spawn(function()
                     while AutoDroneRunning do
-                        if keypress and keyrelease then
-                            keypress(0x33)
-                            task.wait(0.02)
-                            keyrelease(0x33)
-                        else
-                            VIM:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
-                            task.wait(0.02)
-                            VIM:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
-                        end
+                        pcall(function()
+                            -- Executor-native key functions (work tabbed out)
+                            if keypress and keyrelease then
+                                keypress(0x33) -- "3" key
+                                task.wait(0.02)
+                                keyrelease(0x33)
+                            elseif key then
+                                key(0x33)
+                            else
+                                -- Fallback: VirtualInputManager (requires focus)
+                                VIM:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
+                                task.wait(0.02)
+                                VIM:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
+                            end
+                        end)
 
                         task.wait(keyInterval)
                     end
@@ -730,6 +736,109 @@ if game.PlaceId == 131416851083147 then
             end
         end,
     })
+
+end
+
+if game.PlaceId == 104522435597696 then
+local SkinwalkerTab = Window:CreateTab("Skinwalkers", 4483362458)
+local DetectionSection = SkinwalkerTab:CreateSection("Detection & Highlighting")
+
+-- ✅ ANOMALY DETECTION SYSTEM
+local DetectedSkinwalkers = {}
+local DetectionRunning = false
+
+-- Helper function to check if NPC is a skinwalker
+local function IsSkinwalker(npc)
+    if not npc or not npc:FindFirstChildOfClass("Humanoid") then
+        return false
+    end
+    
+    -- ✅ MAIN DETECTION: Check for Skinwalker attribute
+    if npc:GetAttribute("Skinwalker") then
+        return true
+    end
+    
+    -- Backup detection: Check for anomaly effects
+    if npc:GetAttribute("PhotoEffect") then
+        return true
+    end
+    
+    if npc:GetAttribute("CameraEffect") then
+        return true
+    end
+    
+    return false
+end
+
+-- Highlight function
+local function HighlightNPC(npc)
+    if not npc or DetectedSkinwalkers[npc] then return end
+    
+    DetectedSkinwalkers[npc] = true
+    
+    -- Create highlight with white outline and 75% transparent red fill
+    if not npc:FindFirstChild("SkinwalkerHighlight") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "SkinwalkerHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Red
+        highlight.FillTransparency = 0.75 -- 75% transparent
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White outline
+        highlight.OutlineTransparency = 0 -- Fully opaque outline
+        highlight.Parent = npc
+    end
+end
+
+-- Remove highlight function
+local function RemoveHighlight(npc)
+    if not npc then return end
+    
+    DetectedSkinwalkers[npc] = nil
+    
+    -- Remove highlight
+    local highlight = npc:FindFirstChild("SkinwalkerHighlight")
+    if highlight then
+        highlight:Destroy()
+    end
+end
+
+-- Scan all NPCs
+local function ScanAllNPCs()
+    local npcsFolder = workspace:FindFirstChild("NPCs")
+    if not npcsFolder then return end
+    
+    for _, npc in ipairs(npcsFolder:GetChildren()) do
+        if IsSkinwalker(npc) then
+            HighlightNPC(npc)
+        else
+            RemoveHighlight(npc)
+        end
+    end
+end
+
+-- Detection toggle
+local DetectionToggle = SkinwalkerTab:CreateToggle({
+    Name = "Highlight Skinwalkers",
+    CurrentValue = false,
+    Flag = "HighlightSkinwalkers",
+    Callback = function(Value)
+        DetectionRunning = Value
+        
+        if Value then
+            task.spawn(function()
+                while DetectionRunning do
+                    ScanAllNPCs()
+                    task.wait(0.5)
+                end
+            end)
+        else
+            -- Remove all highlights
+            for npc, _ in pairs(DetectedSkinwalkers) do
+                RemoveHighlight(npc)
+            end
+            DetectedSkinwalkers = {}
+        end
+    end,
+})
 
 end
 
