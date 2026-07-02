@@ -646,7 +646,7 @@ if game.PlaceId == 131416851083147 then
         Vector3.new(19, 21, -101),
     }
 
-    local speed = 100
+    local speed = 200
 
     -- ✅ FIX #11: OPTIMIZED MOVEMENT
     local function moveTo(hrp, targetPos)
