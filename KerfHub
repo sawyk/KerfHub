@@ -638,10 +638,12 @@ if game.PlaceId == 131416851083147 then
     local AutoCycleRunning = false
 
     local positions = {
-        Vector3.new(-22, 11, -101),
-        Vector3.new(-22, 17, 63),
-        Vector3.new(16, 17, 63),
-        Vector3.new(16, 11, -98),
+        Vector3.new(-22, 21, -101),
+        Vector3.new(-22, 13, -20),
+        Vector3.new(-22, 27, 63),
+        Vector3.new(19, 27, 63),
+        Vector3.new(19, 13, -20),
+        Vector3.new(19, 21, -101),
     }
 
     local speed = 100
@@ -700,42 +702,42 @@ if game.PlaceId == 131416851083147 then
         end,
     })
 
-    -- ✅ FIX #4: AUTO DRONE (works tabbed out with executor functions)
-    local keyInterval = 0.2
-    local AutoDroneRunning = false
+local keyInterval = 0.2
+local AutoDroneRunning = false
 
-    AutoTab:CreateToggle({
-        Name = "Auto Drone",
-        CurrentValue = false,
-        Flag = "AutoDrone",
-        Callback = function(Value)
-            AutoDroneRunning = Value
+AutoTab:CreateToggle({
+    Name = "Auto Drone",
+    CurrentValue = false,
+    Flag = "AutoDrone",
 
-            if Value then
-                task.spawn(function()
-                    while AutoDroneRunning do
-                        pcall(function()
-                            -- Executor-native key functions (work tabbed out)
-                            if keypress and keyrelease then
-                                keypress(0x33) -- "3" key
-                                task.wait(0.02)
-                                keyrelease(0x33)
-                            elseif key then
-                                key(0x33)
-                            else
-                                -- Fallback: VirtualInputManager (requires focus)
-                                VIM:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
-                                task.wait(0.02)
-                                VIM:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
-                            end
-                        end)
+    Callback = function(enabled)
+        AutoDroneRunning = enabled
 
-                        task.wait(keyInterval)
+        if not enabled then
+            return
+        end
+
+        task.spawn(function()
+            while AutoDroneRunning do
+                pcall(function()
+                    if keypress and keyrelease then
+                        keypress(0x33) -- VK_3
+                        task.wait(0.02)
+                        keyrelease(0x33)
+
+                    elseif key then
+                        key(0x33)
+
+                    else
+                        warn("Your executor doesn't support background key input.")
                     end
                 end)
+
+                task.wait(keyInterval)
             end
-        end,
-    })
+        end)
+    end
+})
 
 end
 
