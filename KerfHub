@@ -844,6 +844,91 @@ local DetectionToggle = SkinwalkerTab:CreateToggle({
 
 end
 
+if game.PlaceId == 80943018226476 then
+    local AutoTab = Window:CreateTab("Auto", 4483362458)
+    local AutoSection = AutoTab:CreateSection("Auto Farm")
+    
+-- ========================================
+-- AUTO CATCH (Fast + Reliable) - Line 854
+-- ========================================
+local AutoCatchRunning = false
+
+local AutoCatchToggle = AutoTab:CreateToggle({
+    Name = "Auto Catch (Fast)",
+    CurrentValue = false,
+    Flag = "AutoCatchFast",
+    Callback = function(Value)
+        AutoCatchRunning = Value
+
+        if Value then
+            task.spawn(function()
+                local CatchEvent = game:GetService("ReplicatedStorage").Events.CatchEvent
+                local session = { sid = nil, nonce = nil, seq = 0, stage2 = nil }
+
+                CatchEvent.OnClientEvent:Connect(function(t, d)
+                    if t == "BiteNotification" and d then
+                        session.sid = d.session and d.session.sid
+                        session.nonce = d.session and d.session.nonce
+                        session.seq = 0
+                    elseif t == "Stage2BeginV2" and d and d.stage2 then
+                        session.stage2 = d.stage2
+                    end
+                end)
+
+                while AutoCatchRunning do
+                    if session.sid and session.nonce then
+                        session.seq += 1
+                        local s = session.seq
+
+                        CatchEvent:FireServer("CastWindupStartV2")
+                        task.wait(0.22)
+
+                        CatchEvent:FireServer("CatchingV2", 2)
+                        task.wait(0.48)
+
+                        CatchEvent:FireServer("ReeledV2", {
+                            sid = session.sid,
+                            nonce = session.nonce,
+                            seq = s,
+                            groundDurationMs = 1620,
+                            swatCount = 9,
+                            reason = "timeout"
+                        })
+
+                        task.wait(0.48)
+
+                        local p = session.stage2 or {}
+                        local duration = (p.targetInsideSeconds or 3.0) * 1000 + 220
+
+                        CatchEvent:FireServer("Stage2ResultV2", {
+                            sid = session.sid,
+                            nonce = session.nonce,
+                            seq = s + 1,
+                            localSuccess = true,
+                            durationMs = duration,
+                            insideMs = duration - 35,
+                            outsideMs = 25,
+                            holdTransitions = 17,
+                            holdTrace = {
+                                {t = 100, h = 1},
+                                {t = 430, h = 0},
+                                {t = 780, h = 1},
+                                {t = 1170, h = 1},
+                                {t = 1590, h = 1},
+                                {t = 2040, h = 1},
+                                {t = 2440, h = 1}
+                            }
+                        })
+                    end
+                    task.wait(1.35)
+                end
+            end)
+        end
+    end,
+})
+
+end
+
 -- ========================================
 -- MISC TAB (Global across all games)
 -- ========================================
