@@ -874,6 +874,7 @@ local AutoDropperToggle = AutoTab:CreateToggle({
                 while AutoDropperRunning do
                     local buildingParts = workspace:FindFirstChild("BuildingParts")
                     if buildingParts then
+                        -- Fire ALL droppers at once (no delays between them)
                         for _, child in pairs(buildingParts:GetChildren()) do
                             if AutoDropperRunning then
                                 local dropper = child:FindFirstChild("Dropper")
@@ -886,7 +887,7 @@ local AutoDropperToggle = AutoTab:CreateToggle({
                             end
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.1) -- Fire all droppers together every 0.1 seconds
                 end
             end)
         end
