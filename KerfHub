@@ -634,21 +634,28 @@ if game.PlaceId == 131416851083147 then
     local AutoTab = Window:CreateTab("Auto", 4483362458)
     local AutoSection = AutoTab:CreateSection("Auto Farm")
 
-    -- ✅ FIX #1: DECLARE BEFORE USE
     local AutoCycleRunning = false
 
-    local positions = {
-        Vector3.new(-22, 21, -101),
-        Vector3.new(-22, 13, -20),
-        Vector3.new(-22, 27, 63),
-        Vector3.new(19, 27, 63),
-        Vector3.new(19, 13, -20),
-        Vector3.new(19, 21, -101),
-    }
+    local function getEnemyPositions()
+        local positions = {}
+
+        for _, enemy in ipairs(workspace.Entities.Enemy:GetChildren()) do
+            if enemy:IsA("Model") then
+                local part = enemy.PrimaryPart or enemy:FindFirstChildWhichIsA("BasePart")
+
+                if part then
+                    table.insert(positions, part.Position + Vector3.new(0, 5, 0))
+                end
+            elseif enemy:IsA("BasePart") then
+                table.insert(positions, enemy.Position + Vector3.new(0, 5, 0))
+            end
+        end
+
+        return positions
+    end
 
     local speed = 200
 
-    -- ✅ FIX #11: OPTIMIZED MOVEMENT
     local function moveTo(hrp, targetPos)
         local start = hrp.Position
         local distance = (targetPos - start).Magnitude
@@ -678,7 +685,6 @@ if game.PlaceId == 131416851083147 then
                 task.spawn(function()
                     local CycleRemote = GetRemote("Remotes.Cycle")
 
-                    -- ✅ FIX #6: SAFER RATE (0.15 instead of 0.1)
                     task.spawn(function()
                         while AutoCycleRunning do
                             SafeFire(CycleRemote)
@@ -689,55 +695,62 @@ if game.PlaceId == 131416851083147 then
                     while AutoCycleRunning do
                         local hrp = GetHRP()
 
-                        for _, pos in ipairs(positions) do
-                            if not AutoCycleRunning then
-                                break
-                            end
+                        if hrp then
+                            local positions = getEnemyPositions()
 
-                            moveTo(hrp, pos)
+                            for _, pos in ipairs(positions) do
+                                if not AutoCycleRunning then
+                                    break
+                                end
+
+                                moveTo(hrp, pos)
+                            end
                         end
+
+                        task.wait()
                     end
                 end)
             end
         end,
     })
 
-local keyInterval = 0.2
-local AutoDroneRunning = false
+    -- ✅ AUTO DRONE - NOW INSIDE THE CYCLING GAME BLOCK
+    local keyInterval = 0.2
+    local AutoDroneRunning = false
 
-AutoTab:CreateToggle({
-    Name = "Auto Drone",
-    CurrentValue = false,
-    Flag = "AutoDrone",
+    AutoTab:CreateToggle({
+        Name = "Auto Drone",
+        CurrentValue = false,
+        Flag = "AutoDrone",
 
-    Callback = function(enabled)
-        AutoDroneRunning = enabled
+        Callback = function(enabled)
+            AutoDroneRunning = enabled
 
-        if not enabled then
-            return
-        end
-
-        task.spawn(function()
-            while AutoDroneRunning do
-                pcall(function()
-                    if keypress and keyrelease then
-                        keypress(0x33) -- VK_3
-                        task.wait(0.02)
-                        keyrelease(0x33)
-
-                    elseif key then
-                        key(0x33)
-
-                    else
-                        warn("Your executor doesn't support background key input.")
-                    end
-                end)
-
-                task.wait(keyInterval)
+            if not enabled then
+                return
             end
-        end)
-    end
-})
+
+            task.spawn(function()
+                while AutoDroneRunning do
+                    pcall(function()
+                        if keypress and keyrelease then
+                            keypress(0x33) -- VK_3
+                            task.wait(0.02)
+                            keyrelease(0x33)
+
+                        elseif key then
+                            key(0x33)
+
+                        else
+                            warn("Your executor doesn't support background key input.")
+                        end
+                    end)
+
+                    task.wait(keyInterval)
+                end
+            end)
+        end
+    })
 
 end
 
@@ -844,83 +857,36 @@ local DetectionToggle = SkinwalkerTab:CreateToggle({
 
 end
 
-if game.PlaceId == 80943018226476 then
-    local AutoTab = Window:CreateTab("Auto", 4483362458)
-    local AutoSection = AutoTab:CreateSection("Auto Farm")
-    
--- ========================================
--- AUTO CATCH (Fast + Reliable) - Line 854
--- ========================================
-local AutoCatchRunning = false
+if game.PlaceId == 73648930852061 then
 
-local AutoCatchToggle = AutoTab:CreateToggle({
-    Name = "Auto Catch (Fast)",
+local AutoTab = Window:CreateTab("Auto", 4483362458)
+local AutoSection = AutoTab:CreateSection("Auto Farm")
+
+local AutoDropperRunning = false
+local AutoDropperToggle = AutoTab:CreateToggle({
+    Name = "Auto Dropper",
     CurrentValue = false,
-    Flag = "AutoCatchFast",
+    Flag = "AutoDropper",
     Callback = function(Value)
-        AutoCatchRunning = Value
-
+        AutoDropperRunning = Value
         if Value then
             task.spawn(function()
-                local CatchEvent = game:GetService("ReplicatedStorage").Events.CatchEvent
-                local session = { sid = nil, nonce = nil, seq = 0, stage2 = nil }
-
-                CatchEvent.OnClientEvent:Connect(function(t, d)
-                    if t == "BiteNotification" and d then
-                        session.sid = d.session and d.session.sid
-                        session.nonce = d.session and d.session.nonce
-                        session.seq = 0
-                    elseif t == "Stage2BeginV2" and d and d.stage2 then
-                        session.stage2 = d.stage2
+                while AutoDropperRunning do
+                    local buildingParts = workspace:FindFirstChild("BuildingParts")
+                    if buildingParts then
+                        for _, child in pairs(buildingParts:GetChildren()) do
+                            if AutoDropperRunning then
+                                local dropper = child:FindFirstChild("Dropper")
+                                if dropper then
+                                    local proximityPrompt = dropper:FindFirstChild("ProximityPrompt")
+                                    if proximityPrompt then
+                                        fireproximityprompt(proximityPrompt)
+                                    end
+                                end
+                            end
+                        end
                     end
-                end)
-
-                while AutoCatchRunning do
-                    if session.sid and session.nonce then
-                        session.seq += 1
-                        local s = session.seq
-
-                        CatchEvent:FireServer("CastWindupStartV2")
-                        task.wait(0.22)
-
-                        CatchEvent:FireServer("CatchingV2", 2)
-                        task.wait(0.48)
-
-                        CatchEvent:FireServer("ReeledV2", {
-                            sid = session.sid,
-                            nonce = session.nonce,
-                            seq = s,
-                            groundDurationMs = 1620,
-                            swatCount = 9,
-                            reason = "timeout"
-                        })
-
-                        task.wait(0.48)
-
-                        local p = session.stage2 or {}
-                        local duration = (p.targetInsideSeconds or 3.0) * 1000 + 220
-
-                        CatchEvent:FireServer("Stage2ResultV2", {
-                            sid = session.sid,
-                            nonce = session.nonce,
-                            seq = s + 1,
-                            localSuccess = true,
-                            durationMs = duration,
-                            insideMs = duration - 35,
-                            outsideMs = 25,
-                            holdTransitions = 17,
-                            holdTrace = {
-                                {t = 100, h = 1},
-                                {t = 430, h = 0},
-                                {t = 780, h = 1},
-                                {t = 1170, h = 1},
-                                {t = 1590, h = 1},
-                                {t = 2040, h = 1},
-                                {t = 2440, h = 1}
-                            }
-                        })
-                    end
-                    task.wait(1.35)
+                    task.wait(0.1)
                 end
             end)
         end
