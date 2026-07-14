@@ -887,7 +887,7 @@ local AutoDropperToggle = AutoTab:CreateToggle({
                             end
                         end
                     end
-                    task.wait(0.1) -- Fire all droppers together every 0.1 seconds
+                    task.wait(0.5) -- Fire all droppers together every 0.1 seconds
                 end
             end)
         end
