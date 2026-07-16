@@ -1036,6 +1036,58 @@ local AutoDropperToggle = AutoTab:CreateToggle({
     end,
 })
 
+local AutoVoteEasyRunning = false
+local AutoVoteEasyToggle = AutoTab:CreateToggle({
+    Name = "Auto Vote Easy",
+    CurrentValue = false,
+    Flag = "AutoVoteEasy",
+    Callback = function(Value)
+        AutoVoteEasyRunning = Value
+        if Value then
+            task.spawn(function()
+                while AutoVoteEasyRunning do
+                    local VoteRemote = game:GetService("ReplicatedStorage").Remotes.Difficulty
+                    VoteRemote:InvokeServer("vote", "Easy")
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end,
+})
+
+local AutoRematchRunning = false
+
+local AutoRematchToggle = AutoTab:CreateToggle({
+    Name = "Auto Rematch",
+    CurrentValue = false,
+    Flag = "AutoRematch",
+    Callback = function(Value)
+        AutoRematchRunning = Value
+
+        if Value then
+            task.spawn(function()
+                local Players = game:GetService("Players")
+                local player = Players.LocalPlayer
+
+                while AutoRematchRunning do
+                    pcall(function()
+                        local button = player.PlayerGui
+                            :FindFirstChild("HUD")
+                            and player.PlayerGui.HUD:FindFirstChild("GameEnded")
+                            and player.PlayerGui.HUD.GameEnded.Back.Holder:FindFirstChild("Again")
+
+                        if button and button.Visible then
+                            button:Activate()
+                        end
+                    end)
+
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
 end
 
 -- ========================================
