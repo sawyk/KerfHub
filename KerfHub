@@ -1,3 +1,9 @@
+if getgenv().KerfHubLoaded then
+    return
+end
+
+getgenv().KerfHubLoaded = true
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -13,7 +19,7 @@ local Window = Rayfield:CreateWindow({
    ConfigurationSaving = {
       Enabled = true,
       FolderName = "Kerf Hub",
-      FileName = "Kerf Hub Config"
+      FileName = "KerfHubConfig"
    },
    Discord = {
       Enabled = false,
@@ -31,6 +37,26 @@ local Window = Rayfield:CreateWindow({
       Key = {""}
    }
 })
+
+-- ========================================
+-- QUEUE ON TELEPORT + AUTO LOAD CONFIG
+-- ========================================
+
+local ScriptURL = "https://raw.githubusercontent.com/sawyk/KerfHub/refs/heads/main/KerfHub"
+
+if queue_on_teleport then
+    queue_on_teleport([[
+        loadstring(game:HttpGet("]] .. ScriptURL .. [["))()
+    ]])
+elseif syn and syn.queue_on_teleport then
+    syn.queue_on_teleport([[
+        loadstring(game:HttpGet("]] .. ScriptURL .. [["))()
+    ]])
+elseif fluxus and fluxus.queue_on_teleport then
+    fluxus.queue_on_teleport([[
+        loadstring(game:HttpGet("]] .. ScriptURL .. [["))()
+    ]])
+end
 
 -- ✅ FIX #9, #10: CACHED SERVICES (declare once at top)
 local Players = game:GetService("Players")
@@ -1109,3 +1135,15 @@ local AntiAFKToggle = MiscTab:CreateToggle({
         end
     end,
 })
+
+-- ========================================
+-- LOAD SAVED RAYFIELD CONFIG
+-- ========================================
+
+task.spawn(function()
+    task.wait(2)
+
+    pcall(function()
+        Rayfield:LoadConfiguration()
+    end)
+end)
