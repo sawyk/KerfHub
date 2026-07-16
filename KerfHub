@@ -862,6 +862,122 @@ if game.PlaceId == 73648930852061 then
 local AutoTab = Window:CreateTab("Auto", 4483362458)
 local AutoSection = AutoTab:CreateSection("Auto Farm")
 
+local AutoBuyDropperRunning = false
+local AutoBuyDropperToggle = AutoTab:CreateToggle({
+    Name = "Auto Buy Dropper",
+    CurrentValue = false,
+    Flag = "AutoBuyDropper",
+    Callback = function(Value)
+        AutoBuyDropperRunning = Value
+        if Value then
+            task.spawn(function()
+                while AutoBuyDropperRunning do
+                    local BuyDropperRemote = game:GetService("ReplicatedStorage").Remotes.BoughtItem
+                    BuyDropperRemote:InvokeServer("Dropper", nil)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end,
+})
+
+local AutoPlaceDropperRunning = false
+
+local BuildingParts = workspace.BuildingParts
+
+local function FixDropper(dropper)
+    pcall(function()
+        if not dropper then return end
+
+        local union = dropper:FindFirstChildWhichIsA("UnionOperation", true)
+
+        -- If the UnionOperation spawned outside the model
+        if not union then
+            local possibleUnion = BuildingParts:FindFirstChild("Dropper")
+
+            if possibleUnion and possibleUnion:IsA("UnionOperation") then
+                union = possibleUnion
+            end
+        end
+
+        if union then
+            -- Match manually placed dropper properties
+            union.Anchored = true
+            union.CollisionGroup = "Dropper"
+
+            union.AssemblyLinearVelocity = Vector3.zero
+            union.AssemblyAngularVelocity = Vector3.zero
+
+            -- Try to stop physics ownership issues
+            pcall(function()
+                union:SetNetworkOwner(game.Players.LocalPlayer)
+            end)
+
+            -- Put UnionOperation inside the Dropper model
+            if union.Parent ~= dropper then
+                union.Parent = dropper
+            end
+        end
+    end)
+end
+
+
+-- Detect newly spawned droppers instantly
+BuildingParts.ChildAdded:Connect(function(child)
+    if child.Name == "Dropper" then
+        task.wait()
+        FixDropper(child)
+    end
+end)
+
+
+local AutoPlaceDropperToggle = AutoTab:CreateToggle({
+    Name = "Auto Place Dropper",
+    CurrentValue = false,
+    Flag = "AutoPlaceDropper",
+
+    Callback = function(Value)
+        AutoPlaceDropperRunning = Value
+
+        if Value then
+            task.spawn(function()
+
+                local AutoPlaceDropperRemote = game:GetService("ReplicatedStorage").Remotes.Inventory
+
+                while AutoPlaceDropperRunning do
+                    pcall(function()
+
+                        local seller = workspace.Map.BuildingParts:FindFirstChild("Seller")
+
+                        if seller then
+
+                            local placeCF = seller.WorldPivot * CFrame.new(0, 10, 0)
+
+                            AutoPlaceDropperRemote:InvokeServer(
+                                "spawn",
+                                "Dropper",
+                                placeCF
+                            )
+
+                            -- Backup fix in case ChildAdded misses timing
+                            task.wait()
+
+                            local dropper = BuildingParts:FindFirstChild("Dropper")
+
+                            if dropper then
+                                FixDropper(dropper)
+                            end
+                        end
+
+                    end)
+
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end,
+})
+
 local AutoDropperRunning = false
 local AutoDropperToggle = AutoTab:CreateToggle({
     Name = "Auto Dropper",
@@ -887,7 +1003,7 @@ local AutoDropperToggle = AutoTab:CreateToggle({
                             end
                         end
                     end
-                    task.wait(0.5) -- Fire all droppers together every 0.1 seconds
+                    task.wait(0.1) -- Fire all droppers together every 0.1 seconds
                 end
             end)
         end
