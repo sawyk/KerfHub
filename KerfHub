@@ -1055,39 +1055,6 @@ local AutoVoteEasyToggle = AutoTab:CreateToggle({
     end,
 })
 
-local AutoRematchRunning = false
-
-local AutoRematchToggle = AutoTab:CreateToggle({
-    Name = "Auto Rematch",
-    CurrentValue = false,
-    Flag = "AutoRematch",
-    Callback = function(Value)
-        AutoRematchRunning = Value
-
-        if Value then
-            task.spawn(function()
-                local Players = game:GetService("Players")
-                local player = Players.LocalPlayer
-
-                while AutoRematchRunning do
-                    pcall(function()
-                        local button = player.PlayerGui
-                            :FindFirstChild("HUD")
-                            and player.PlayerGui.HUD:FindFirstChild("GameEnded")
-                            and player.PlayerGui.HUD.GameEnded.Back.Holder:FindFirstChild("Again")
-
-                        if button and button.Visible then
-                            button:Activate()
-                        end
-                    end)
-
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
-
 local AutoNextRoundRunning = false
 local AutoNextRoundToggle = AutoTab:CreateToggle({
     Name = "Auto Next Round",
