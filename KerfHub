@@ -1088,6 +1088,26 @@ local AutoRematchToggle = AutoTab:CreateToggle({
     end
 })
 
+local AutoNextRoundRunning = false
+local AutoNextRoundToggle = AutoTab:CreateToggle({
+    Name = "Auto Next Round",
+    CurrentValue = false,
+    Flag = "AutoNextRound",
+    Callback = function(Value)
+        AutoNextRoundRunning = Value
+        if Value then
+            task.spawn(function()
+                while AutoNextRoundRunning do
+                    local AutoNextRoundRemote = game:GetService("ReplicatedStorage").Remotes.GameEvent
+                    AutoNextRoundRemote:InvokeServer("nextRound")
+                    task.wait(0.1)
+                
+                end
+            end)
+        end
+    end
+})
+
 end
 
 -- ========================================
