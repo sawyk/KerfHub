@@ -1108,6 +1108,50 @@ local AutoNextRoundToggle = AutoTab:CreateToggle({
     end
 })
 
+local HoverDroppersRunning = false
+
+local HoverDroppersToggle = AutoTab:CreateToggle({
+    Name = "Hover Above Droppers",
+    CurrentValue = false,
+    Flag = "HoverDroppers",
+    Callback = function(Value)
+        HoverDroppersRunning = Value
+
+        if Value then
+            task.spawn(function()
+                local Players = game:GetService("Players")
+                local player = Players.LocalPlayer
+
+                while HoverDroppersRunning do
+                    pcall(function()
+                        local character = player.Character
+                        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+
+                        if hrp then
+                            local droppersFolder = workspace:FindFirstChild("BuildingParts")
+
+                            if droppersFolder then
+                                for _, dropper in ipairs(droppersFolder:GetChildren()) do
+                                    if dropper:IsA("Model") then
+                                        local part = dropper.PrimaryPart or dropper:FindFirstChildWhichIsA("BasePart")
+
+                                        if part then
+                                            hrp.CFrame = part.CFrame + Vector3.new(0, 2, 0)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+
+                    task.wait(0.2)
+                end
+            end)
+        end
+    end
+})
+
 end
 
 -- ========================================
